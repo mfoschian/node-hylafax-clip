@@ -1,0 +1,10 @@
+{
+  "name": "hylafax-clip",
+  "version": "0.0.1",
+  "description": "hylafax node interface in Promise paradigm",
+  "license": "MIT",
+  "dependencies": {
+    "promise": "~7.0.1"
+  },
+  "readmeFilename": "Readme.md"
+}
