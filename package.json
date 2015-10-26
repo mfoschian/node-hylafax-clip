@@ -1,6 +1,7 @@
 {
   "name": "hylafax-clip",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "main": "HylafaxClient.js",
   "description": "hylafax node interface in Promise paradigm",
   "license": "MIT",
   "dependencies": {
