@@ -1,5 +1,12 @@
+//var Hylafax = require('hylafax-clip');
 var Hylafax = require('../HylafaxClient');
 var util = require('util');
+
+
+function dump( res )
+{
+	console.log( 'Data: %s', util.inspect(res) );
+};
 
 var options =
 {
@@ -7,36 +14,12 @@ var options =
 	,port: 4559
 	,username: 'myusr'
 	,password: 'mypwd'
-	//,debug: function(msg) { console.log('DBG: %s', msg); }
 };
 
 
 var hylafax = new Hylafax( options );
 
 
-function term( msg )
-{
-	if( msg )
-		console.log( 'Terminating: %s', msg );
-
-	if( !hylafax )
-		console.log( 'Hylafax instance missing' );
-	else
-		hylafax.disconnect();
-
-	process.exit();
-}
-
-
-
-if( !hylafax )
-	term( 'No Hylafax!');
-
-
-function dump( res )
-{
-	console.log( 'Data: %s', util.inspect(res) );
-};
 
 hylafax.connect().then( function()
 {
@@ -62,12 +45,13 @@ hylafax.connect().then( function()
 	console.log('------- Completed Jobs -------');
     return hylafax.getCompletedJobs().then( dump );
 })
-.then( undefined, function( err )
+.then( function( data )
+{
+	hylafax.disconnect();
+},
+function( err )
 {
 	console.log( 'Error occurred: %s', err );
-	return null;
-})
-.then( term, term );
+	hylafax.disconnect();
+});
 
-
-process.once('SIGINT', term );
