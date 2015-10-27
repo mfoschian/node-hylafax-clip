@@ -7,7 +7,7 @@ and module git://github.com/danjenkins/node-ftp.git
 
 # Installing
 ```
-npm install wget
+npm install hylafax-clip
 ```
 
 # Usage
