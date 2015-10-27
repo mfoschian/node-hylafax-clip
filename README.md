@@ -55,16 +55,18 @@ function( err )
 ```
 
 ### options
-options.user = options.user || 'NodeJS Hylafax Client';
-options.dial_attempts = options.dial_attempts || 3;
-options.tries = options.tries || 3;
-options.notification_address = options.notification_address || 'root@localhost';
-options.information = options.information || 'Hylafax Client Information';
-options.last_time = options.last_time || '000259';
-options.scheduled_priority = options.scheduled_priority || '127';
-options.vres = options.vres || '196';
-options.page_width = options.page_width || '209';
-options.page_length = options.page_length || '296';
-options.notify = options.notify || 'none';
-options.page_chop = options.page_chop || 'default';
-options.chop_threshold = options.chop_threshold || '';
+The options to sendFax are the following:
+
+Option|Description|Default Value
+------|-----------|-------------
+user|Username of the client|'NodeJS Hylafax Client'
+dial_attempts|The maximum number of times to dial the phone|3
+tries|The maximum number of times to retry sending a job once connection is established|3
+notification_address|email adress where to send notifications|root@localhost
+notify|Controls the email notification messages from the server. Possible values: "none" - notify if error only, "done" - notify when done, "requeue" - notify if job is re-queued, "done+requeue"|none
+information|client job tag| 'Hylafax Client Information'
+last_time|Kill the job if not successfully sent after this much time in 'DDHHSS' format||'000259' (three hours)
+scheduled_priority|The scheduling priority to assign to the job|127
+vres|Set the vertical resolution in lines/inch to use when transmitting facsimile. High resolution equals to "196", low resolution equals to "98"|196
+page_width|Set the transmitted page width in millimeters|209
+page_length|Set the transmitted page length in millimeters|296
