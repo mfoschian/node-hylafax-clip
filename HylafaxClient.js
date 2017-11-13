@@ -23,6 +23,7 @@ function HylafaxClient(params){
 	self.port = params.port || 4559;
 	self.username = params.username || '';
 	self.password = params.password || '';
+	self.split_char = params.split_char || ';';
 
 	//http://www.hylafax.org/man/6.0/hfaxd.1m.html
 	//going to use the send functionality in this module and it's callback methodology
@@ -801,6 +802,53 @@ HylafaxClient.prototype.sendMode = function(mode){
 	return this._send('MODE', mode );
 };
 
+
+HylafaxClient.prototype.sendFile = function( stream ) {
+	return new Promise( function( resolve, reject )
+	{
+		self.ftp.temp_put(stream, function(err, res) {
+			if(err) {
+				reject(err);
+				return;
+			}
+
+			file = /\(FILE:\s([\/A-Za-z0-9.]+)\)/.exec(res);
+			if(!file) {
+				reject( new Error('No temporary file uploaded: ' +  res) );
+				return;
+			}
+
+			var tempFileName = file[1];
+			resolve( tempFileName );
+		});
+	});
+};
+
+HylafaxClient.prototype.newJob = function(options, dest, fileName) {
+	var self = this;
+	return self._send('JNEW')
+		.then( function() { return self._send('JPARM', 'FROMUSER "' + options.user + '"'); })
+		.then( function() { return self._send('JPARM', 'LASTTIME "' + options.last_time + '"'); })
+		.then( function() { return self._send('JPARM', 'MAXDIALS "' + options.dial_attempts + '"'); })
+		.then( function() { return self._send('JPARM', 'MAXTRIES "' + options.tries + '"'); })
+		.then( function() { return self._send('JPARM', 'SCHEDPRI "' + options.scheduled_priority + '"'); })
+		.then( function() { return self._send('JPARM', 'DIALSTRING "' + dest + '"'); })
+		.then( function() { return self._send('JPARM', 'NOTIFYADDR "' + options.notification_address + '"'); })
+		.then( function() { return self._send('JPARM', 'JOBINFO "' + options.information + '"'); })
+		.then( function() { return self._send('JPARM', 'VRES "' + options.vres + '"'); })
+		.then( function() { return self._send('JPARM', 'PAGEWIDTH "' + options.page_width + '"'); })
+		.then( function() { return self._send('JPARM', 'PAGELENGTH "' + options.page_length + '"'); })
+		.then( function() { return self._send('JPARM', 'NOTIFY "' + options.notify + '"'); })
+		.then( function() { return self._send('JPARM', 'PAGECHOP "' + options.page_chop + '"'); })
+		.then( function() { return self._send('JPARM', 'CHOPTHRESHOLD "' + options.chop_threshold + '"'); })
+		.then( function() { return self._send('JPARM', 'DOCUMENT "' + fileName + '"'); })
+		.then( function() { return self._send('JSUBM'); } )
+		.then( function(response) {
+			var jobid = /\d+/.exec(response)/1;
+			return jobid;
+		});
+};
+
 HylafaxClient.prototype.sendFax = function(options, stream){
 
 	if(!stream){
@@ -815,19 +863,28 @@ HylafaxClient.prototype.sendFax = function(options, stream){
 		return Promise.reject( new Error('No number to fax'));
 	}
 
-	options.user = options.user || 'NodeJS Hylafax Client';
-	options.dial_attempts = options.dial_attempts || 3;
-	options.tries = options.tries || 3;
-	options.notification_address = options.notification_address || 'root@localhost';
-	options.information = options.information || 'Hylafax Client Information';
-	options.last_time = options.last_time || '000259';
-	options.scheduled_priority = options.scheduled_priority || '127';
-	options.vres = options.vres || '196';
-	options.page_width = options.page_width || '209';
-	options.page_length = options.page_length || '296';
-	options.notify = options.notify || 'none';
-	options.page_chop = options.page_chop || 'default';
-	options.chop_threshold = options.chop_threshold || '';
+	var numbers = options.number;
+	if( typeof(numbers) == 'string' ) {
+		numbers = numbers.split( this.split_char );
+	}
+	else if( !Array.isArray( numbers ) ) {
+		return Promise.reject( new Error('Wrong destination format') );
+	}
+
+	var opt = {};
+	opt.user = options.user || 'NodeJS Hylafax Client';
+	opt.dial_attempts = options.dial_attempts || 3;
+	opt.tries = options.tries || 3;
+	opt.notification_address = options.notification_address || 'root@localhost';
+	opt.information = options.information || 'Hylafax Client Information';
+	opt.last_time = options.last_time || '000259';
+	opt.scheduled_priority = options.scheduled_priority || '127';
+	opt.vres = options.vres || '196';
+	opt.page_width = options.page_width || '209';
+	opt.page_length = options.page_length || '296';
+	opt.notify = options.notify || 'none';
+	opt.page_chop = options.page_chop || 'default';
+	opt.chop_threshold = options.chop_threshold || '';
 
 	var self = this;
 	var fileName = stream;
@@ -842,56 +899,32 @@ HylafaxClient.prototype.sendFax = function(options, stream){
 
 	//console.log( 'HFaxCLI: sending fax to %s', options.number );
 
-	var p = self.sendType('I');
-	
-	if( typeof( fileName ) != 'string' )
-	{
-		p = p.then( function()
-		{
-			return new Promise( function( resolve, reject )
-			{
-				self.ftp.temp_put(stream, function(err, res){
-					if(err){
-						reject(err);
-						return;
-					}
-
-					file = /\(FILE:\s([\/A-Za-z0-9.]+)\)/.exec(res);
-					if(!file){
-						reject( new Error('No temporary file uploaded: ' +  res) );
-						return;
-					}
-
-					fileName = file[1];
-					resolve( fileName );
-				});
-			});
-		});
-	};
-	
-	p = p.then( function() { return self._send('JNEW'); })
-	.then( function() { return self._send('JPARM', 'FROMUSER "' + options.user + '"'); })
-	.then( function() { return self._send('JPARM', 'LASTTIME "' + options.last_time + '"'); })
-	.then( function() { return self._send('JPARM', 'MAXDIALS "' + options.dial_attempts + '"'); })
-	.then( function() { return self._send('JPARM', 'MAXTRIES "' + options.tries + '"'); })
-	.then( function() { return self._send('JPARM', 'SCHEDPRI "' + options.scheduled_priority + '"'); })
-	.then( function() { return self._send('JPARM', 'DIALSTRING "' + options.number + '"'); })
-	.then( function() { return self._send('JPARM', 'NOTIFYADDR "' + options.notification_address + '"'); })
-	.then( function() { return self._send('JPARM', 'JOBINFO "' + options.information + '"'); })
-	.then( function() { return self._send('JPARM', 'VRES "' + options.vres + '"'); })
-	.then( function() { return self._send('JPARM', 'PAGEWIDTH "' + options.page_width + '"'); })
-	.then( function() { return self._send('JPARM', 'PAGELENGTH "' + options.page_length + '"'); })
-	.then( function() { return self._send('JPARM', 'NOTIFY "' + options.notify + '"'); })
-	.then( function() { return self._send('JPARM', 'PAGECHOP "' + options.page_chop + '"'); })
-	.then( function() { return self._send('JPARM', 'CHOPTHRESHOLD "' + options.chop_threshold + '"'); })
-	.then( function() { return self._send('JPARM', 'DOCUMENT "' + fileName + '"'); })
-	.then( function() { return self._send('JSUBM'); } )
-	.then( function(response) {
-		var jobid = /\d+/.exec(response)/1;
-		return jobid;
+	var first = self.sendType('I')
+	.then( function() {
+		if( typeof( fileName ) != 'string' ) {
+			return self.sendFile( fileName );
+		}
+		else {
+			return Promise.resolve( fileName );
+		}
+	})
+	.then( function( fileName ) {
+		return { document: fileName, jobs: [] };
 	});
 
-	return p;
+	return numbers.reduce( function( p, dest ) {
+		return p.then( function( state ) {
+			return self.newJob( options, dest, state.document )
+			.then( function( jobid ) {
+				state.jobs.push( jobid );
+				return state;
+			});
+		});
+
+	}, first )
+	.then( function( state ) {
+		return state.jobs;
+	});
 };
 
 HylafaxClient.prototype.killFax = function(job_id, adminPass)
@@ -914,4 +947,3 @@ HylafaxClient.prototype.killFax = function(job_id, adminPass)
 	p = p.then( function() { return self._send('JKILL', job_id); });
 	return p;
 };
-
