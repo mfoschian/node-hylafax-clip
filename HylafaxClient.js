@@ -804,6 +804,7 @@ HylafaxClient.prototype.sendMode = function(mode){
 
 
 HylafaxClient.prototype.sendFile = function( stream ) {
+	var self = this;
 	return new Promise( function( resolve, reject )
 	{
 		self.ftp.temp_put(stream, function(err, res) {
@@ -899,8 +900,8 @@ HylafaxClient.prototype.sendFax = function(options, stream){
 
 	//console.log( 'HFaxCLI: sending fax to %s', options.number );
 
-	var first = self.sendType('I')
-	.then( function() {
+	return self.sendType('I').then( function() {
+
 		if( typeof( fileName ) != 'string' ) {
 			return self.sendFile( fileName );
 		}
@@ -908,22 +909,17 @@ HylafaxClient.prototype.sendFax = function(options, stream){
 			return Promise.resolve( fileName );
 		}
 	})
-	.then( function( fileName ) {
-		return { document: fileName, jobs: [] };
-	});
+	.then( function( fname ) {
 
-	return numbers.reduce( function( p, dest ) {
-		return p.then( function( state ) {
-			return self.newJob( options, dest, state.document )
-			.then( function( jobid ) {
-				state.jobs.push( jobid );
-				return state;
+		return numbers.reduce( function( p, dest ) {
+			return p.then( function( jobs ) {
+				return self.newJob( opt, dest, fname ).then( function( jobid ) {
+					jobs.push( jobid );
+					return jobs;
+				});
 			});
-		});
 
-	}, first )
-	.then( function( state ) {
-		return state.jobs;
+		}, Promise.resolve( [] ) );
 	});
 };
 
