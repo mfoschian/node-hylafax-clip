@@ -161,7 +161,7 @@ HylafaxClient.prototype.setRecievedFormat = function(format){
 HylafaxClient.prototype.prepareRecievedFormat = function(format)
 {
 	var self = this;
-	var fmt = [ '%j','%i','%a','%o','%e','%P','%D','%z','%s'];
+	var fmt = [ '%j','%i','%a','%o','%e','%P','%D','%z','%s', '%J' ];
 	var p = this.setRecievedFormat( pipeJoin( fmt ) ).then( function() { return fmt; });
 
 	return p;
